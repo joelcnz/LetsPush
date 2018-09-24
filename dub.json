@@ -1,0 +1,19 @@
+{
+    "name": "pusher",
+    "targetType": "executable",
+    "description": "A minimal D application.",
+    "copyright": "Copyright © 2013, Jeremy",
+    "authors": ["Joel"],
+	"lflags-osx" : ["-L../../DSFMLlibs"],
+    "sourcePaths" : ["source",
+                     "../../BibleLib/source",
+                     "../../JecLib/source",
+                     "../../JMiscLib/source",
+                     "../../IniLib/source",
+                     "../../arsdLib/source"],
+    "dependencies": 
+    {
+        "dsfml:graphics": "~>2.1",
+		"dsfml:audio": "~>2.1"
+    }
+}
