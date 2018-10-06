@@ -1,3 +1,5 @@
+//#rename
+//#work here
 /+
 Welcome to Lets Push!
 
@@ -25,7 +27,8 @@ import std.math;
 import base;
 
 int main(string[] args) {
-	"\n#\n#\n#\n#\n###\n".writeln;
+	scope(exit)
+		"\n#\n#\n#\n#\n###\n".writeln;
     g_window = new RenderWindow(VideoMode(SCREEN_W, SCREEN_H),
 							  "Welcome to Lets-Push! Press [System] + [Q] to quit"d);
 
@@ -97,7 +100,7 @@ int main(string[] args) {
 				jx.addToHistory("converge - free tiles");
 				jx.addToHistory("cat - list project files");
 				jx.addToHistory("save <file name>");
-				jx.addToHistory("load <file name>");
+				jx.addToHistory("load (@onlyPushers) <file name>");
 				jx.addToHistory("delete <file name>");
 			}
 			if (! input.length) {
@@ -107,35 +110,106 @@ int main(string[] args) {
 
 			import std.ascii: isDigit;
 			import std.string: split, join;
+			import std.algorithm: startsWith, acountUntil = countUntil;
+			import std.path: setExtension;
 
 			string news = input.to!string;
 			string command = news.split[0];
-			string values = news.split[1 .. $].join(" ");
-			string fileName = buildPath("saves", values ~ ".bin");
+			//#work here
+			auto args = news.split[1 .. $];
+
+			auto pos = news.acountUntil(" ");
+			if (pos == -1)
+				pos = 0;
+			string forQuotes = news[pos .. $] ~ " ";
+			forQuotes.gh;
+			args.length = 0;
+			int i, qsp, wsp;
+			bool inQuotes, inWord;
+			while(i < forQuotes.length) {
+				// save 0 @onlyPushers
+				// to ["0", "@onlyPushers"]
+				/+
+				+/
+				//quotes:
+				if (! inWord && forQuotes[i] == '"') {
+					if (! inQuotes) {
+						inQuotes = true;
+						qsp = i + 1;
+					} else if (inQuotes) {
+						args ~= forQuotes[qsp .. i];
+						inQuotes = false;
+					}
+				}
+				//word:
+				if (! inQuotes) {
+					if (inWord) {
+						if (forQuotes[i] == ' ') {
+							args ~= forQuotes[wsp .. i];
+							inWord = false;
+						}
+					}
+					if (! inWord && forQuotes[i] != ' ' && forQuotes[i] != '"') {
+						wsp = i;
+						inWord = true;
+					}
+				}
+				i += 1;
+			}
+
+			string[] types;
+			string values;
+			foreach(arg; args)
+				if (arg.startsWith("@"))
+					types ~= arg;
+				else
+					values ~= arg ~ " ";
+			if (values.length)
+				values = values[0 .. $ - 1]; // remove the space at the end
+			string fileName = buildPath("saves", values.setExtension(".bin"));
+
+			string someException() {
+				import std.conv: text;
+
+				return text(command, " ", values, " - some exception");
+			}
 
 			try {
-				if (values.length && values[0].isDigit)
-					fileName = files[values.to!int];
+				import std.string: strip;
+
+				writeln(values);
+				if (values.length) {
+					auto svalue = values.strip;
+					writeln(svalue);
+					if (svalue[0].isDigit)
+						mixin(jecho("fileName = files[svalue.to!int];"));
+				}
 			} catch(Exception e) {
-				jx.addToHistory(command, " ", values, " - some exception");
+				writeln(someException);
 			}
 
 			switch(command) {
 				default:
 				case "help":
 					displayHelp;
-					g_historyMan.add("Help displayed..");
+					jx.addToHistory("Help displayed..");
 				break;
 				case "cat":
 					files = cat(/* display: */ true);
 				break;
 				case "save":
 					Save s;
-					s.save(fileName);
+					if (s.save(fileName, moveAllCursors, userMode))
+						jx.addToHistory("Saved: ", fileName);
 				break;
 				case "load":
 					Load l;
-					l.load(fileName);
+					if (l.load(fileName, moveAllCursors, userMode, types))
+						jx.addToHistory("Loaded: ", fileName, " ", types);
+				break;
+				//#rename
+				case "rename":
+
 				break;
 				case "delete":
 					bool yes;
@@ -150,7 +224,7 @@ int main(string[] args) {
 						do {
 							while(g_window.pollEvent(event))
 							{ }
-							if (g_keys[Keyboard.Key.N].keyInput)
+							if (g_keys[Keyboard.Key.N].keyInput || g_keys[Keyboard.Key.Escape].keyInput)
 								yes = false,
 								doneYN = true;
 							if (g_keys[Keyboard.Key.Y].keyInput)
@@ -328,6 +402,7 @@ auto cat(bool display) {
 	import std.file: dirEntries, DirEntry, SpanMode;
 	import std.path: dirSeparator;
 	import std.range: enumerate;
+	import std.array: array, replicate;
 
 	if (display)
 		jx.addToHistory("File list from 'saves':");
@@ -335,9 +410,10 @@ auto cat(bool display) {
 	string[] files;
 	foreach(DirEntry file; dirEntries("saves", "*.{bin}", SpanMode.shallow).array.sort!"a.name < b.name") {
 		files ~= file.name.idup;
-		if (display)
-			jx.addToHistory(text(i++, ") ", file.name.
-											find(dirSeparator)[1 .. $].until("."), "\t\t", file.size));
+		if (display) {
+			auto name = file.name.find(dirSeparator)[1 .. $].until(".").array;
+			jx.addToHistory(text(i++, ") ", name, " ".replicate(14 - name.length), file.size, " bytes"));
+		}
 	}
 
 	return files;
